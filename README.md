@@ -1,5 +1,7 @@
 # WhatsApp MCP Server
 
+> **🤖 For AI Agents:** If you're an AI agent installing this server in OI OS / Brain Trust 4, see [AGENTS.md](./AGENTS.md) for complete installation instructions, parameter extractors, and intent mappings setup.
+
 This is a Model Context Protocol (MCP) server for WhatsApp.
 
 With this you can search and read your personal Whatsapp messages (including images, videos, documents, and audio messages), search your contacts and send messages to either individuals or groups. You can also send media files including images, videos, documents, and audio messages.
