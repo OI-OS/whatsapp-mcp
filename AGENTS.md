@@ -126,6 +126,10 @@ SQL
 
 # 6. Generate/append parameter extractors to TOML file (REQUIRED for parameter extraction)
 # Create or append to parameter_extractors.toml in project root
+# NOTE: If file doesn't exist, create it with [extractors] header first
+if [ ! -f "parameter_extractors.toml" ]; then
+    echo "[extractors]" > parameter_extractors.toml
+fi
 cat >> parameter_extractors.toml << 'WHATSAPP_EXTRACTORS'
 
 # ============================================================================
@@ -151,9 +155,9 @@ cat >> parameter_extractors.toml << 'WHATSAPP_EXTRACTORS'
 "message" = "keyword:after_message"
 "Extract message text from query" = "remove:send,whatsapp,message,to"
 
-# WhatsApp send_message message text - Extract everything after recipient (JID or phone)
-"whatsapp-mcp::send_message.message" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
-"whatsapp-mcp::send_message.Extract message text" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
+# WhatsApp send_message message text - Extract everything after the phone/JID (accounting for "to" keyword)
+"whatsapp-mcp::send_message.message" = "transform:regex:(?:to\\s+)?(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
+"whatsapp-mcp::send_message.Extract message text" = "transform:regex:(?:to\\s+)?(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
 
 # WhatsApp search_contacts - Extract search query
 "whatsapp-mcp::search_contacts.query" = "remove:search,find,whatsapp,contacts,contact"
@@ -429,7 +433,11 @@ Add to: `parameter_extractors.toml` in your OI OS project root (or `~/.oi/parame
 
 ### WhatsApp Parameter Extractors
 
+**⚠️ IMPORTANT**: The `parameter_extractors.toml` file MUST start with `[extractors]` section header. If the file doesn't exist, create it with the header first.
+
 ```toml
+[extractors]
+
 # ============================================================================
 # WHATSAPP MCP SERVER EXTRACTION PATTERNS
 # ============================================================================
@@ -445,17 +453,17 @@ Add to: `parameter_extractors.toml` in your OI OS project root (or `~/.oi/parame
 "Extract recipient from query" = "conditional:if_contains:@(s\\.whatsapp\\.net|g\\.us)|then:regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)|else:regex:\\b\\d{10,15}\\b"
 "Extract phone number from query" = "regex:\\b\\d{10,15}\\b"
 
-# WhatsApp send_message recipient - Prioritize JID extraction (more specific), then phone
-"whatsapp-mcp::send_message.recipient" = "regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b"
-"whatsapp-mcp::send_message.Extract recipient" = "regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)|(?<=to\\s+|group\\s+|the\\s+group\\s+)[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b"
+# WhatsApp send_message recipient - Extract phone or JID after "to" keyword
+"whatsapp-mcp::send_message.recipient" = "regex:(?:to\\s+)([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})|([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})"
+"whatsapp-mcp::send_message.Extract recipient" = "regex:(?:to\\s+)([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})|([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})"
 
 # Message text/content
 "message" = "keyword:after_message"
 "Extract message text from query" = "remove:send,whatsapp,message,to"
 
-# WhatsApp send_message message text - Extract everything after recipient (JID or phone)
-"whatsapp-mcp::send_message.message" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
-"whatsapp-mcp::send_message.Extract message text" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
+# WhatsApp send_message message text - Extract everything after the phone/JID (accounting for "to" keyword)
+"whatsapp-mcp::send_message.message" = "transform:regex:(?:to\\s+)?(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
+"whatsapp-mcp::send_message.Extract message text" = "transform:regex:(?:to\\s+)?(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
 
 # WhatsApp search_contacts - Extract search query
 "whatsapp-mcp::search_contacts.query" = "remove:search,find,whatsapp,contacts,contact"
@@ -543,11 +551,15 @@ Add to: `parameter_extractors.toml` in your OI OS project root (or `~/.oi/parame
 ### Adding to parameter_extractors.toml
 
 You can either:
-1. **Manual Edit**: Open `parameter_extractors.toml` and add the patterns above
+1. **Manual Edit**: Open `parameter_extractors.toml` and add the patterns above. **Ensure the file starts with `[extractors]` header.**
 2. **Append Script** (for AI agents):
    ```bash
+   # Create file with header if it doesn't exist
+   if [ ! -f "parameter_extractors.toml" ]; then
+       echo "[extractors]" > parameter_extractors.toml
+   fi
    cat >> parameter_extractors.toml << 'WHATSAPP_EXTRACTORS'
-   # WhatsApp patterns (paste patterns above)
+   # WhatsApp patterns (paste patterns above, starting from line after [extractors])
    WHATSAPP_EXTRACTORS
    ```
 
@@ -931,6 +943,13 @@ pip install -e .  # If using pip
 
 ### Parameter Extraction Issues
 
+**Extractors Not Loading / Patterns Not Found**
+- **Critical**: Ensure `parameter_extractors.toml` starts with `[extractors]` section header
+- Check file format: First line should be `[extractors]` (no quotes, no spaces before)
+- Verify file is loading: Run `DEBUG=1 ./oi "test"` and check for "Loaded X custom extraction patterns"
+- If you see "Loaded 0 custom extraction patterns", the file format is incorrect
+- Fix: Add `[extractors]` as the first line of the file
+
 **Recipient Not Extracted**
 - Verify `whatsapp-mcp::send_message.recipient` pattern in `parameter_extractors.toml`
 - Check pattern matches your query format (JID vs phone number)
@@ -1042,6 +1061,33 @@ For issues specific to:
 
 ## Known Issues & Fixes
 
+### Parameter Extractors File Format Issue
+
+**Issue**: Parameter extractors are not loading, showing "Loaded 0 custom extraction patterns" in debug output, or patterns are not being found.
+
+**Root Cause**: The `parameter_extractors.toml` file must start with `[extractors]` section header. Without this header, the file is not parsed correctly and no patterns are loaded.
+
+**Fix**: Ensure the first line of `parameter_extractors.toml` is:
+```toml
+[extractors]
+```
+
+**Verification**: Check if extractors are loading:
+```bash
+DEBUG=1 ./oi "test" 2>&1 | grep -E "(Loaded|Merged).*patterns"
+```
+
+Should show: `✅ Loaded X custom extraction patterns` (where X > 0)
+
+**Prevention**: When creating or appending to `parameter_extractors.toml`, always ensure the `[extractors]` header is present:
+```bash
+# Create file with header if it doesn't exist
+if [ ! -f "parameter_extractors.toml" ]; then
+    echo "[extractors]" > parameter_extractors.toml
+fi
+# Then append patterns
+```
+
 ### Parameter Extraction Not Working
 
 **Issue**: When using WhatsApp tools via natural language queries (e.g., `./oi "whatsapp send message to 15862013686 Hello!"`), required parameters are not extracted, resulting in errors like "Recipient must be provided" or "Message must be provided".
@@ -1092,12 +1138,12 @@ echo "15862013686@s.whatsapp.net" | grep -oE '[\\w\\d]+@(s\\.whatsapp\\.net|g\\.
 
 **Issue**: When sending messages, the message text includes the recipient (e.g., `"message": "to 15862013686 Hello"` instead of just `"Hello"`).
 
-**Fix**: Ensure the message extractor pattern captures only text after the recipient:
+**Fix**: Ensure the message extractor pattern captures only text after the recipient (accounting for "to" keyword):
 
 ```toml
-# CORRECT: Captures only text after recipient pattern
-"whatsapp-mcp::send_message.message" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15}(?:@s\\.whatsapp\\.net)?)\\s+(.+)$|trim"
+# CORRECT: Captures only text after recipient pattern, handles "to" keyword
+"whatsapp-mcp::send_message.message" = "transform:regex:(?:to\\s+)?(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
 ```
 
-The pattern uses a non-capturing group for the recipient and a capture group for the message text.
+The pattern uses a non-capturing group for the recipient (with optional "to" keyword) and a capture group for the message text.
 
