@@ -22,6 +22,19 @@ This guide provides comprehensive installation instructions for AI agents instal
 
 ## AI Agent Quick Installation
 
+**⚠️ For AI Agents: Use Direct Calls for Reliability**
+
+AI agents should prefer **direct `brain-trust4 call` commands** over natural language queries for maximum reliability. Natural language commands can timeout or have parameter extraction issues. Direct calls bypass intent mapping and parameter extraction, providing consistent results.
+
+**Example:**
+```bash
+# ✅ RECOMMENDED for AI agents: Direct call
+./brain-trust4 call whatsapp-mcp send_message '{"recipient": "15862013686@s.whatsapp.net", "message": "Hello"}'
+
+# ⚠️ FALLBACK: Natural language (may timeout or fail parameter extraction)
+./oi "whatsapp send message to 15862013686 Hello"
+```
+
 For AI agents using OI OS, execute the following commands:
 
 ```bash
@@ -246,7 +259,9 @@ WHATSAPP_EXTRACTORS
 **Important Notes:**
 - **Bridge must be running**: The WhatsApp bridge must be running in the background for the MCP server to access WhatsApp data
 - **First-time authentication**: You'll need to scan a QR code with your WhatsApp mobile app on first run
-- **NOTE (Backup Option)**: For direct tool calls bypassing intent mapping, use: `./brain-trust4 call whatsapp-mcp tool-name '{"param": "value"}'`
+- **For AI Agents**: Prefer direct calls (`./brain-trust4 call`) over natural language commands for reliability
+- **For End Users**: Natural language commands (`./oi "whatsapp send message..."`) provide better UX but may timeout
+- **Direct Calls**: Use `./brain-trust4 call whatsapp-mcp tool-name '{"param": "value"}'` to bypass intent mapping and parameter extraction
 
 ---
 
