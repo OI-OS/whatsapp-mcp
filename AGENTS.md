@@ -11,10 +11,12 @@ This guide provides comprehensive installation instructions for AI agents instal
 5. [Setting Up the Python MCP Server](#setting-up-the-python-mcp-server)
 6. [Connecting to OI OS](#connecting-to-oi-os)
 7. [Configuring Parameter Extractors](#configuring-parameter-extractors)
-8. [Creating Intent Mappings](#creating-intent-mappings)
-9. [End User Setup](#end-user-setup)
-10. [Verification & Testing](#verification--testing)
-11. [Troubleshooting](#troubleshooting)
+8. [Creating Parameter Rules](#creating-parameter-rules)
+9. [Creating Intent Mappings](#creating-intent-mappings)
+10. [End User Setup](#end-user-setup)
+11. [Verification & Testing](#verification--testing)
+12. [Troubleshooting](#troubleshooting)
+13. [Known Issues & Fixes](#known-issues--fixes)
 
 ---
 
@@ -38,9 +40,98 @@ cd ../../
 # 4. Run the bridge in the background (first-time QR code authentication required)
 cd MCP-servers/whatsapp-mcp/whatsapp-bridge
 ./whatsapp-bridge &
+
+# 5. Create intent mappings and parameter rules (single optimized transaction)
+sqlite3 brain-trust4.db << 'SQL'
+BEGIN TRANSACTION;
+
+-- Intent mappings (all 12 tools)
+INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
+('whatsapp search contacts', 'whatsapp-mcp', 'search_contacts', 10),
+('whatsapp list messages', 'whatsapp-mcp', 'list_messages', 10),
+('whatsapp list chats', 'whatsapp-mcp', 'list_chats', 10),
+('whatsapp get chat', 'whatsapp-mcp', 'get_chat', 10),
+('whatsapp get direct chat', 'whatsapp-mcp', 'get_direct_chat_by_contact', 10),
+('whatsapp get contact chats', 'whatsapp-mcp', 'get_contact_chats', 10),
+('whatsapp get last interaction', 'whatsapp-mcp', 'get_last_interaction', 10),
+('whatsapp get message context', 'whatsapp-mcp', 'get_message_context', 10),
+('whatsapp send message', 'whatsapp-mcp', 'send_message', 10),
+('whatsapp send file', 'whatsapp-mcp', 'send_file', 10),
+('whatsapp send audio', 'whatsapp-mcp', 'send_audio_message', 10),
+('whatsapp download media', 'whatsapp-mcp', 'download_media', 10);
+
+-- Parameter rules (all 12 tools)
+-- search_contacts: query is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'search_contacts', 'whatsapp-mcp::search_contacts', '["query"]',
+'{"query": {"FromQuery": "whatsapp-mcp::search_contacts.query"}}', '[]');
+
+-- list_messages: no required fields (all optional)
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'list_messages', 'whatsapp-mcp::list_messages', '[]',
+'{"chat_jid": {"FromQuery": "whatsapp-mcp::list_messages.chat_jid"}, "sender_phone_number": {"FromQuery": "whatsapp-mcp::list_messages.sender_phone_number"}, "query": {"FromQuery": "whatsapp-mcp::list_messages.query"}, "after": {"FromQuery": "whatsapp-mcp::list_messages.after"}, "before": {"FromQuery": "whatsapp-mcp::list_messages.before"}, "limit": {"FromQuery": "limit"}, "page": {"FromQuery": "page"}, "include_context": {"FromQuery": "include_context"}, "context_before": {"FromQuery": "context_before"}, "context_after": {"FromQuery": "context_after"}}', '[]');
+
+-- list_chats: no required fields (all optional)
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'list_chats', 'whatsapp-mcp::list_chats', '[]',
+'{"query": {"FromQuery": "whatsapp-mcp::list_chats.query"}, "limit": {"FromQuery": "limit"}, "page": {"FromQuery": "page"}, "include_last_message": {"FromQuery": "include_last_message"}, "sort_by": {"FromQuery": "sort_by"}}', '[]');
+
+-- get_chat: chat_jid is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_chat', 'whatsapp-mcp::get_chat', '["chat_jid"]',
+'{"chat_jid": {"FromQuery": "whatsapp-mcp::get_chat.chat_jid"}, "include_last_message": {"FromQuery": "include_last_message"}}', '[]');
+
+-- get_direct_chat_by_contact: sender_phone_number is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_direct_chat_by_contact', 'whatsapp-mcp::get_direct_chat_by_contact', '["sender_phone_number"]',
+'{"sender_phone_number": {"FromQuery": "whatsapp-mcp::get_direct_chat_by_contact.sender_phone_number"}}', '[]');
+
+-- get_contact_chats: jid is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_contact_chats', 'whatsapp-mcp::get_contact_chats', '["jid"]',
+'{"jid": {"FromQuery": "whatsapp-mcp::get_contact_chats.jid"}, "limit": {"FromQuery": "limit"}, "page": {"FromQuery": "page"}}', '[]');
+
+-- get_last_interaction: jid is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_last_interaction', 'whatsapp-mcp::get_last_interaction', '["jid"]',
+'{"jid": {"FromQuery": "whatsapp-mcp::get_last_interaction.jid"}}', '[]');
+
+-- get_message_context: message_id is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_message_context', 'whatsapp-mcp::get_message_context', '["message_id"]',
+'{"message_id": {"FromQuery": "whatsapp-mcp::get_message_context.message_id"}, "before": {"FromQuery": "context_before"}, "after": {"FromQuery": "context_after"}}', '[]');
+
+-- send_message: recipient and message are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'send_message', 'whatsapp-mcp::send_message', '["recipient", "message"]',
+'{"recipient": {"FromQuery": "whatsapp-mcp::send_message.recipient"}, "message": {"FromQuery": "whatsapp-mcp::send_message.message"}}', '[]');
+
+-- send_file: recipient and media_path are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'send_file', 'whatsapp-mcp::send_file', '["recipient", "media_path"]',
+'{"recipient": {"FromQuery": "whatsapp-mcp::send_file.recipient"}, "media_path": {"FromQuery": "whatsapp-mcp::send_file.media_path"}}', '[]');
+
+-- send_audio_message: recipient and media_path are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'send_audio_message', 'whatsapp-mcp::send_audio_message', '["recipient", "media_path"]',
+'{"recipient": {"FromQuery": "whatsapp-mcp::send_audio_message.recipient"}, "media_path": {"FromQuery": "whatsapp-mcp::send_audio_message.media_path"}}', '[]');
+
+-- download_media: message_id and chat_jid are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'download_media', 'whatsapp-mcp::download_media', '["message_id", "chat_jid"]',
+'{"message_id": {"FromQuery": "whatsapp-mcp::download_media.message_id"}, "chat_jid": {"FromQuery": "whatsapp-mcp::download_media.chat_jid"}}', '[]');
+
+COMMIT;
+SQL
+
+# NOTE: Parameter extraction is fragile - direct calls are more reliable
 ```
 
-**Note:** The first time you run the bridge, you'll need to scan a QR code with your WhatsApp mobile app. After authentication, the bridge runs in the background.
+**Important Notes:**
+- **Bridge must be running**: The WhatsApp bridge must be running in the background for the MCP server to access WhatsApp data
+- **First-time authentication**: You'll need to scan a QR code with your WhatsApp mobile app on first run
+- **Parameter extraction is fragile**: Natural language queries with intent mapping may fail parameter extraction - direct calls are recommended
+- **Direct calls work reliably**: Use `./brain-trust4 call whatsapp-mcp tool-name '{"param": "value"}'` for reliable execution
 
 ---
 
@@ -253,6 +344,58 @@ Add to: `parameter_extractors.toml` in your OI OS project root (or `~/.oi/parame
 "whatsapp-mcp::send_message.message" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
 "whatsapp-mcp::send_message.Extract message text" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
 
+# WhatsApp search_contacts - Extract search query
+"whatsapp-mcp::search_contacts.query" = "remove:search,find,whatsapp,contacts,contact"
+"whatsapp-mcp::search_contacts.Extract query" = "remove:search,find,whatsapp,contacts,contact"
+
+# WhatsApp list_messages - Extract parameters (all optional, but provide extractors)
+"whatsapp-mcp::list_messages.chat_jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::list_messages.sender_phone_number" = "regex:\\b\\d{10,15}\\b"
+"whatsapp-mcp::list_messages.query" = "remove:list,show,get,whatsapp,messages,message"
+"whatsapp-mcp::list_messages.after" = "regex:(?:after|since|from)(?:\\s+)?(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}:\\d{2})?)"
+"whatsapp-mcp::list_messages.before" = "regex:(?:before|until|to)(?:\\s+)?(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}:\\d{2})?)"
+
+# WhatsApp list_chats - Extract parameters (all optional)
+"whatsapp-mcp::list_chats.query" = "remove:list,show,get,whatsapp,chats,chat"
+
+# WhatsApp get_chat - Extract chat_jid (required)
+"whatsapp-mcp::get_chat.chat_jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::get_chat.Extract chat JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
+# WhatsApp get_direct_chat_by_contact - Extract sender_phone_number (required)
+"whatsapp-mcp::get_direct_chat_by_contact.sender_phone_number" = "regex:\\b\\d{10,15}\\b"
+"whatsapp-mcp::get_direct_chat_by_contact.Extract phone number" = "regex:\\b\\d{10,15}\\b"
+
+# WhatsApp get_contact_chats - Extract jid (required)
+"whatsapp-mcp::get_contact_chats.jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::get_contact_chats.Extract JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
+# WhatsApp get_last_interaction - Extract jid (required)
+"whatsapp-mcp::get_last_interaction.jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::get_last_interaction.Extract JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
+# WhatsApp get_message_context - Extract message_id (required)
+"whatsapp-mcp::get_message_context.message_id" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+"whatsapp-mcp::get_message_context.Extract message ID" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+
+# WhatsApp send_file - Extract recipient and media_path (both required)
+"whatsapp-mcp::send_file.recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_file.media_path" = "keyword:after_file"
+"whatsapp-mcp::send_file.Extract recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_file.Extract file path" = "keyword:after_file"
+
+# WhatsApp send_audio_message - Extract recipient and media_path (both required)
+"whatsapp-mcp::send_audio_message.recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_audio_message.media_path" = "keyword:after_file"
+"whatsapp-mcp::send_audio_message.Extract recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_audio_message.Extract audio file path" = "keyword:after_file"
+
+# WhatsApp download_media - Extract message_id and chat_jid (both required)
+"whatsapp-mcp::download_media.message_id" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+"whatsapp-mcp::download_media.chat_jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::download_media.Extract message ID" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+"whatsapp-mcp::download_media.Extract chat JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
 # Search/query terms
 "query" = "remove:search,find,show,list,get,whatsapp"
 "Extract search query from query" = "remove:search,find,show,list,get,whatsapp"
@@ -297,6 +440,143 @@ You can either:
 
 ---
 
+## Creating Parameter Rules
+
+**⚠️ CRITICAL: Parameter rules must be created in the database for parameter extraction to work.**
+
+Parameter rules define which fields are required and how to extract them from natural language queries. The OI OS parameter engine **only extracts required fields** - optional fields are skipped even if extractors exist in `parameter_extractors.toml`.
+
+### Why Parameter Rules Are Needed
+
+- **Required fields are extracted**: The parameter engine processes required fields and invokes their extractors
+- **Optional fields are skipped**: Optional fields are ignored during parameter extraction, even if extractors exist
+- **Database-driven**: Parameter rules are stored in the `parameter_rules` table in `brain-trust4.db`
+
+### Creating Parameter Rules
+
+Run this optimized SQL transaction to create all parameter rules in a single operation:
+
+```sql
+BEGIN TRANSACTION;
+-- search_contacts: query is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'search_contacts', 'whatsapp-mcp::search_contacts', '["query"]',
+'{"query": {"FromQuery": "whatsapp-mcp::search_contacts.query"}}', '[]');
+
+-- list_messages: no required fields (all optional)
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'list_messages', 'whatsapp-mcp::list_messages', '[]',
+'{"chat_jid": {"FromQuery": "whatsapp-mcp::list_messages.chat_jid"}, "sender_phone_number": {"FromQuery": "whatsapp-mcp::list_messages.sender_phone_number"}, "query": {"FromQuery": "whatsapp-mcp::list_messages.query"}, "after": {"FromQuery": "whatsapp-mcp::list_messages.after"}, "before": {"FromQuery": "whatsapp-mcp::list_messages.before"}, "limit": {"FromQuery": "limit"}, "page": {"FromQuery": "page"}, "include_context": {"FromQuery": "include_context"}, "context_before": {"FromQuery": "context_before"}, "context_after": {"FromQuery": "context_after"}}', '[]');
+
+-- list_chats: no required fields (all optional)
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'list_chats', 'whatsapp-mcp::list_chats', '[]',
+'{"query": {"FromQuery": "whatsapp-mcp::list_chats.query"}, "limit": {"FromQuery": "limit"}, "page": {"FromQuery": "page"}, "include_last_message": {"FromQuery": "include_last_message"}, "sort_by": {"FromQuery": "sort_by"}}', '[]');
+
+-- get_chat: chat_jid is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_chat', 'whatsapp-mcp::get_chat', '["chat_jid"]',
+'{"chat_jid": {"FromQuery": "whatsapp-mcp::get_chat.chat_jid"}, "include_last_message": {"FromQuery": "include_last_message"}}', '[]');
+
+-- get_direct_chat_by_contact: sender_phone_number is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_direct_chat_by_contact', 'whatsapp-mcp::get_direct_chat_by_contact', '["sender_phone_number"]',
+'{"sender_phone_number": {"FromQuery": "whatsapp-mcp::get_direct_chat_by_contact.sender_phone_number"}}', '[]');
+
+-- get_contact_chats: jid is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_contact_chats', 'whatsapp-mcp::get_contact_chats', '["jid"]',
+'{"jid": {"FromQuery": "whatsapp-mcp::get_contact_chats.jid"}, "limit": {"FromQuery": "limit"}, "page": {"FromQuery": "page"}}', '[]');
+
+-- get_last_interaction: jid is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_last_interaction', 'whatsapp-mcp::get_last_interaction', '["jid"]',
+'{"jid": {"FromQuery": "whatsapp-mcp::get_last_interaction.jid"}}', '[]');
+
+-- get_message_context: message_id is REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'get_message_context', 'whatsapp-mcp::get_message_context', '["message_id"]',
+'{"message_id": {"FromQuery": "whatsapp-mcp::get_message_context.message_id"}, "before": {"FromQuery": "context_before"}, "after": {"FromQuery": "context_after"}}', '[]');
+
+-- send_message: recipient and message are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'send_message', 'whatsapp-mcp::send_message', '["recipient", "message"]',
+'{"recipient": {"FromQuery": "whatsapp-mcp::send_message.recipient"}, "message": {"FromQuery": "whatsapp-mcp::send_message.message"}}', '[]');
+
+-- send_file: recipient and media_path are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'send_file', 'whatsapp-mcp::send_file', '["recipient", "media_path"]',
+'{"recipient": {"FromQuery": "whatsapp-mcp::send_file.recipient"}, "media_path": {"FromQuery": "whatsapp-mcp::send_file.media_path"}}', '[]');
+
+-- send_audio_message: recipient and media_path are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'send_audio_message', 'whatsapp-mcp::send_audio_message', '["recipient", "media_path"]',
+'{"recipient": {"FromQuery": "whatsapp-mcp::send_audio_message.recipient"}, "media_path": {"FromQuery": "whatsapp-mcp::send_audio_message.media_path"}}', '[]');
+
+-- download_media: message_id and chat_jid are REQUIRED
+INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, required_fields, field_generators, patterns) VALUES
+('whatsapp-mcp', 'download_media', 'whatsapp-mcp::download_media', '["message_id", "chat_jid"]',
+'{"message_id": {"FromQuery": "whatsapp-mcp::download_media.message_id"}, "chat_jid": {"FromQuery": "whatsapp-mcp::download_media.chat_jid"}}', '[]');
+
+COMMIT;
+```
+
+### Critical Fix: Making Required Fields Actually Required
+
+**Problem**: If a field is marked as optional in the parameter rule, the parameter engine will skip it entirely, even if:
+- An extractor pattern exists in `parameter_extractors.toml`
+- The extractor pattern is correctly configured
+- The query contains the parameter value
+
+**Solution**: Make all fields that need to be extracted from natural language queries required in the parameter rule, even if they're technically optional in the tool's API signature.
+
+**Example for send_message:**
+```sql
+-- WRONG: message is optional, so it won't be extracted
+required_fields: '["recipient"]'
+
+-- CORRECT: message is required, so it will be extracted
+required_fields: '["recipient", "message"]'
+```
+
+**Why This Works**: The OI OS parameter engine only processes fields listed in `required_fields`. Optional fields are completely skipped during parameter extraction, regardless of whether extractors exist.
+
+### Verifying Parameter Rules
+
+```bash
+# List all WhatsApp parameter rules
+sqlite3 brain-trust4.db "SELECT tool_signature, required_fields FROM parameter_rules WHERE server_name = 'whatsapp-mcp';"
+
+# Check specific tool rule
+sqlite3 brain-trust4.db "SELECT * FROM parameter_rules WHERE tool_signature = 'whatsapp-mcp::send_message';"
+```
+
+### Updating Parameter Rules
+
+To update a parameter rule (e.g., to make a field required):
+
+```bash
+sqlite3 brain-trust4.db << 'SQL'
+-- Make message required for send_message
+UPDATE parameter_rules 
+SET required_fields = '["recipient", "message"]' 
+WHERE tool_signature = 'whatsapp-mcp::send_message';
+SQL
+```
+
+### Testing Parameter Extraction
+
+After creating parameter rules, test with debug output:
+
+```bash
+# Test with debug output
+DEBUG=1 ./oi brain "whatsapp send message to 15862013686 Hello from OI!" --test-params 2>&1 | grep -A 15 "Parameter Generation"
+```
+
+You should see both `recipient` and `message` in the generated parameters if the rule is correct.
+
+---
+
 ## Creating Intent Mappings
 
 Intent mappings connect natural language queries to specific WhatsApp MCP tools. Create them using SQL INSERT statements.
@@ -320,41 +600,7 @@ CREATE TABLE intent_mappings (
 
 ### All WhatsApp Intent Mappings
 
-Run these SQL INSERT statements to create intent mappings for all WhatsApp tools:
-
-```sql
--- Contact search and discovery
-INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
-('whatsapp search contacts', 'whatsapp-mcp', 'search_contacts', 10);
-
--- Message retrieval
-INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
-('whatsapp list messages', 'whatsapp-mcp', 'list_messages', 10);
-
--- Chat management
-INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
-('whatsapp list chats', 'whatsapp-mcp', 'list_chats', 10),
-('whatsapp get chat', 'whatsapp-mcp', 'get_chat', 10),
-('whatsapp get direct chat', 'whatsapp-mcp', 'get_direct_chat_by_contact', 10),
-('whatsapp get contact chats', 'whatsapp-mcp', 'get_contact_chats', 10);
-
--- Message context and history
-INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
-('whatsapp get last interaction', 'whatsapp-mcp', 'get_last_interaction', 10),
-('whatsapp get message context', 'whatsapp-mcp', 'get_message_context', 10);
-
--- Sending messages
-INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
-('whatsapp send message', 'whatsapp-mcp', 'send_message', 10),
-('whatsapp send file', 'whatsapp-mcp', 'send_file', 10),
-('whatsapp send audio', 'whatsapp-mcp', 'send_audio_message', 10);
-
--- Media download
-INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
-('whatsapp download media', 'whatsapp-mcp', 'download_media', 10);
-```
-
-### Alternative: Single SQL Statement
+Run this optimized single SQL statement to create all intent mappings:
 
 ```sql
 INSERT OR REPLACE INTO intent_mappings (keyword, server_name, tool_name, priority) VALUES 
@@ -579,6 +825,11 @@ pip install -e .  # If using pip
 - Verify `whatsapp-mcp::send_message.message` pattern in `parameter_extractors.toml`
 - Ensure message comes after recipient in query
 - Check for trailing whitespace issues (pattern includes `trim`)
+- **Critical**: Verify `message` is marked as required in parameter rule:
+  ```sql
+  sqlite3 brain-trust4.db "SELECT required_fields FROM parameter_rules WHERE tool_signature = 'whatsapp-mcp::send_message';"
+  ```
+  Should show: `["recipient", "message"]` (not just `["recipient"]`)
 
 ### Intent Mapping Issues
 
@@ -668,7 +919,70 @@ For issues specific to:
 
 ---
 
-**Last Updated:** 2025-11-03  
+**Last Updated:** 2025-11-08  
 **Compatible With:** OI OS / Brain Trust 4, Claude Desktop, Cursor  
 **Server Version:** 1.6.0
+
+---
+
+## Known Issues & Fixes
+
+### Parameter Extraction Not Working
+
+**Issue**: When using WhatsApp tools via natural language queries (e.g., `./oi "whatsapp send message to 15862013686 Hello!"`), required parameters are not extracted, resulting in errors like "Recipient must be provided" or "Message must be provided".
+
+**Root Cause**: The OI OS parameter engine only extracts fields marked as **required** in the `parameter_rules` database table. If a field is marked as optional, it will be skipped entirely, even if:
+- An extractor pattern exists in `parameter_extractors.toml`
+- The extractor pattern is correctly configured
+- The query contains the parameter value
+
+**Fix**: Ensure all fields that need to be extracted from natural language queries are marked as required in the parameter rule:
+
+```sql
+sqlite3 brain-trust4.db << 'SQL'
+-- Example: Make message required for send_message
+UPDATE parameter_rules 
+SET required_fields = '["recipient", "message"]' 
+WHERE tool_signature = 'whatsapp-mcp::send_message';
+SQL
+```
+
+**Verification**: After applying the fix, test with debug output:
+
+```bash
+DEBUG=1 ./oi brain "whatsapp send message to 15862013686 Hello from OI!" --test-params 2>&1 | grep -A 15 "Parameter Generation"
+```
+
+You should see both `recipient` and `message` in the generated parameters.
+
+**Prevention**: When creating parameter rules, ensure all fields that need to be extracted from natural language queries are marked as required, even if they're technically optional in the tool's API signature. The parameter engine only processes required fields.
+
+### Recipient Extraction Issues
+
+**Issue**: Recipient is extracted as partial value (e.g., "s.whatsapp.net" instead of full JID "15862013686@s.whatsapp.net").
+
+**Fix**: Ensure the extractor pattern uses capture groups to extract the full value:
+
+```toml
+# CORRECT: Uses capture group to extract full JID or phone
+"whatsapp-mcp::send_message.recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+```
+
+**Verification**: Test the regex pattern manually:
+```bash
+echo "15862013686@s.whatsapp.net" | grep -oE '[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b'
+```
+
+### Message Text Includes Recipient
+
+**Issue**: When sending messages, the message text includes the recipient (e.g., `"message": "to 15862013686 Hello"` instead of just `"Hello"`).
+
+**Fix**: Ensure the message extractor pattern captures only text after the recipient:
+
+```toml
+# CORRECT: Captures only text after recipient pattern
+"whatsapp-mcp::send_message.message" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15}(?:@s\\.whatsapp\\.net)?)\\s+(.+)$|trim"
+```
+
+The pattern uses a non-capturing group for the recipient and a capture group for the message text.
 
