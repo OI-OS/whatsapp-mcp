@@ -124,14 +124,125 @@ INSERT OR REPLACE INTO parameter_rules (server_name, tool_name, tool_signature, 
 COMMIT;
 SQL
 
-# NOTE: Parameter extraction is fragile - direct calls are more reliable
+# 6. Generate/append parameter extractors to TOML file (REQUIRED for parameter extraction)
+# Create or append to parameter_extractors.toml in project root
+cat >> parameter_extractors.toml << 'WHATSAPP_EXTRACTORS'
+
+# ============================================================================
+# WHATSAPP MCP SERVER EXTRACTION PATTERNS
+# ============================================================================
+
+# JID (Jabber ID) - WhatsApp chat/contact identifier
+"chat_jid" = "regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)"
+"jid" = "regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)"
+"Extract chat JID from query" = "regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)"
+
+# Phone number - Extract phone numbers (with or without country code)
+"sender_phone_number" = "regex:\\b\\d{10,15}\\b"
+"recipient" = "conditional:if_contains:@(s\\.whatsapp\\.net|g\\.us)|then:regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)|else:regex:\\b\\d{10,15}\\b"
+"Extract recipient from query" = "conditional:if_contains:@(s\\.whatsapp\\.net|g\\.us)|then:regex:[\\w\\d]+@(s\\.whatsapp\\.net|g\\.us)|else:regex:\\b\\d{10,15}\\b"
+"Extract phone number from query" = "regex:\\b\\d{10,15}\\b"
+
+# WhatsApp send_message recipient - Prioritize JID extraction (more specific), then phone
+"whatsapp-mcp::send_message.recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_message.Extract recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|(?<=to\\s+|group\\s+|the\\s+group\\s+)[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+
+# Message text/content
+"message" = "keyword:after_message"
+"Extract message text from query" = "remove:send,whatsapp,message,to"
+
+# WhatsApp send_message message text - Extract everything after recipient (JID or phone)
+"whatsapp-mcp::send_message.message" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
+"whatsapp-mcp::send_message.Extract message text" = "transform:regex:(?:[\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\d{10,15})\\s+(.+)$|trim"
+
+# WhatsApp search_contacts - Extract search query
+"whatsapp-mcp::search_contacts.query" = "remove:search,find,whatsapp,contacts,contact"
+"whatsapp-mcp::search_contacts.Extract query" = "remove:search,find,whatsapp,contacts,contact"
+
+# WhatsApp list_messages - Extract parameters (all optional, but provide extractors)
+"whatsapp-mcp::list_messages.chat_jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::list_messages.sender_phone_number" = "regex:\\b\\d{10,15}\\b"
+"whatsapp-mcp::list_messages.query" = "remove:list,show,get,whatsapp,messages,message"
+"whatsapp-mcp::list_messages.after" = "regex:(?:after|since|from)(?:\\s+)?(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}:\\d{2})?)"
+"whatsapp-mcp::list_messages.before" = "regex:(?:before|until|to)(?:\\s+)?(\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}:\\d{2})?)"
+
+# WhatsApp list_chats - Extract parameters (all optional)
+"whatsapp-mcp::list_chats.query" = "remove:list,show,get,whatsapp,chats,chat"
+
+# WhatsApp get_chat - Extract chat_jid (required)
+"whatsapp-mcp::get_chat.chat_jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::get_chat.Extract chat JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
+# WhatsApp get_direct_chat_by_contact - Extract sender_phone_number (required)
+"whatsapp-mcp::get_direct_chat_by_contact.sender_phone_number" = "regex:\\b\\d{10,15}\\b"
+"whatsapp-mcp::get_direct_chat_by_contact.Extract phone number" = "regex:\\b\\d{10,15}\\b"
+
+# WhatsApp get_contact_chats - Extract jid (required)
+"whatsapp-mcp::get_contact_chats.jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::get_contact_chats.Extract JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
+# WhatsApp get_last_interaction - Extract jid (required)
+"whatsapp-mcp::get_last_interaction.jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::get_last_interaction.Extract JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
+# WhatsApp get_message_context - Extract message_id (required)
+"whatsapp-mcp::get_message_context.message_id" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+"whatsapp-mcp::get_message_context.Extract message ID" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+
+# WhatsApp send_file - Extract recipient and media_path (both required)
+"whatsapp-mcp::send_file.recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_file.media_path" = "keyword:after_file"
+"whatsapp-mcp::send_file.Extract recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_file.Extract file path" = "keyword:after_file"
+
+# WhatsApp send_audio_message - Extract recipient and media_path (both required)
+"whatsapp-mcp::send_audio_message.recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_audio_message.media_path" = "keyword:after_file"
+"whatsapp-mcp::send_audio_message.Extract recipient" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us)|\\b\\d{10,15}\\b)"
+"whatsapp-mcp::send_audio_message.Extract audio file path" = "keyword:after_file"
+
+# WhatsApp download_media - Extract message_id and chat_jid (both required)
+"whatsapp-mcp::download_media.message_id" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+"whatsapp-mcp::download_media.chat_jid" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+"whatsapp-mcp::download_media.Extract message ID" = "regex:\\b([A-Za-z0-9]{20,})\\b"
+"whatsapp-mcp::download_media.Extract chat JID" = "regex:([\\w\\d]+@(?:s\\.whatsapp\\.net|g\\.us))"
+
+# Search/query terms
+"query" = "remove:search,find,show,list,get,whatsapp"
+"Extract search query from query" = "remove:search,find,show,list,get,whatsapp"
+
+# Date fields (ISO-8601 format) - for list_messages tool
+"after_date" = "regex:\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2})?"
+"before_date" = "regex:\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2})?"
+"Extract date from query" = "regex:\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2})?"
+
+# Numeric fields (limit, page, context counts)
+"limit" = "conditional:if_matches:\\d+|then:regex:\\b\\d+\\b|else:default:20"
+"page" = "conditional:if_matches:\\d+|then:regex:\\b\\d+\\b|else:default:0"
+"context_before" = "conditional:if_matches:\\d+|then:regex:\\b\\d+\\b|else:default:5"
+"context_after" = "conditional:if_matches:\\d+|then:regex:\\b\\d+\\b|else:default:5"
+
+# Message ID
+"message_id" = "regex:\\b[A-Za-z0-9]{20,}\\b"
+"Extract message ID from query" = "regex:\\b[A-Za-z0-9]{20,}\\b"
+
+# File path
+"media_path" = "keyword:after_file"
+"Extract file path from query" = "keyword:after_file"
+
+# Boolean fields
+"include_context" = "default:true"
+"include_last_message" = "default:true"
+
+# Sort field (enum: "last_active" or "name")
+"sort_by" = "conditional:if_contains:name|then:default:name|else:default:last_active"
+WHATSAPP_EXTRACTORS
 ```
 
 **Important Notes:**
 - **Bridge must be running**: The WhatsApp bridge must be running in the background for the MCP server to access WhatsApp data
 - **First-time authentication**: You'll need to scan a QR code with your WhatsApp mobile app on first run
-- **Parameter extraction is fragile**: Natural language queries with intent mapping may fail parameter extraction - direct calls are recommended
-- **Direct calls work reliably**: Use `./brain-trust4 call whatsapp-mcp tool-name '{"param": "value"}'` for reliable execution
+- **NOTE (Backup Option)**: For direct tool calls bypassing intent mapping, use: `./brain-trust4 call whatsapp-mcp tool-name '{"param": "value"}'`
 
 ---
 
@@ -309,6 +420,8 @@ pwd
 ## Configuring Parameter Extractors
 
 Parameter extractors allow OI OS to automatically extract tool parameters from natural language queries. Add these patterns to your `parameter_extractors.toml` file:
+
+**NOTE (Backup Option)**: For direct tool calls bypassing intent mapping and parameter extraction, use: `./brain-trust4 call whatsapp-mcp tool-name '{"param": "value"}'`
 
 ### Location
 
@@ -757,7 +870,9 @@ DELETE FROM intent_mappings WHERE server_name = 'whatsapp-mcp';
 ./oi "whatsapp send message to 120363326225382732@g.us Live test from OI OS prompt. Hello World."
 ```
 
-### Direct Tool Calls
+### Direct Tool Calls (Backup Option)
+
+**NOTE**: For direct tool calls bypassing intent mapping and parameter extraction:
 
 ```bash
 # Direct tool call (bypasses intent mapping)
