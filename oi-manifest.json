@@ -1,0 +1,192 @@
+{
+  "server_name": "whatsapp-mcp",
+  "version": "1.0.0",
+  "intents": [
+    {
+      "keyword": "whatsapp search contacts",
+      "tool_name": "search_contacts",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp list messages",
+      "tool_name": "list_messages",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp list chats",
+      "tool_name": "list_chats",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get chat",
+      "tool_name": "get_chat",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get direct chat",
+      "tool_name": "get_direct_chat_by_contact",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get contact chats",
+      "tool_name": "get_contact_chats",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get last interaction",
+      "tool_name": "get_last_interaction",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get message context",
+      "tool_name": "get_message_context",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp send message",
+      "tool_name": "send_message",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp send file",
+      "tool_name": "send_file",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp send audio",
+      "tool_name": "send_audio_message",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp download media",
+      "tool_name": "download_media",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp search contacts",
+      "tool_name": "search_contacts",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp list messages",
+      "tool_name": "list_messages",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp list chats",
+      "tool_name": "list_chats",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get chat",
+      "tool_name": "get_chat",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get direct chat",
+      "tool_name": "get_direct_chat_by_contact",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get contact chats",
+      "tool_name": "get_contact_chats",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get last interaction",
+      "tool_name": "get_last_interaction",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp get message context",
+      "tool_name": "get_message_context",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp send message",
+      "tool_name": "send_message",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp send file",
+      "tool_name": "send_file",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp send audio",
+      "tool_name": "send_audio_message",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp download media",
+      "tool_name": "download_media",
+      "priority": 10
+    },
+    {
+      "keyword": "whatsapp list chats",
+      "tool_name": "list_chats",
+      "priority": 10
+    }
+  ],
+  "parameter_extractors": {
+    "send_message": {
+      "whatsapp-mcp::send_message.recipient": "regex:(?:to\\\\s+)([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\d{10,15})|([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\d{10,15})",
+      "whatsapp-mcp::send_message.Extract recipient": "regex:(?:to\\\\s+)([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\d{10,15})|([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\d{10,15})",
+      "whatsapp-mcp::send_message.message": "transform:regex:(?:to\\\\s+)?(?:[\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\d{10,15})\\\\s+(.+)$|trim",
+      "whatsapp-mcp::send_message.Extract message text": "transform:regex:(?:to\\\\s+)?(?:[\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\d{10,15})\\\\s+(.+)$|trim"
+    },
+    "search_contacts": {
+      "whatsapp-mcp::search_contacts.query": "remove:search,find,whatsapp,contacts,contact",
+      "whatsapp-mcp::search_contacts.Extract query": "remove:search,find,whatsapp,contacts,contact"
+    },
+    "list_messages": {
+      "whatsapp-mcp::list_messages.chat_jid": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))",
+      "whatsapp-mcp::list_messages.sender_phone_number": "regex:\\\\b\\\\d{10,15}\\\\b",
+      "whatsapp-mcp::list_messages.query": "remove:list,show,get,whatsapp,messages,message",
+      "whatsapp-mcp::list_messages.after": "regex:(?:after|since|from)(?:\\\\s+)?(\\\\d{4}-\\\\d{2}-\\\\d{2}(?:T\\\\d{2}:\\\\d{2}:\\\\d{2})?)",
+      "whatsapp-mcp::list_messages.before": "regex:(?:before|until|to)(?:\\\\s+)?(\\\\d{4}-\\\\d{2}-\\\\d{2}(?:T\\\\d{2}:\\\\d{2}:\\\\d{2})?)"
+    },
+    "list_chats": {
+      "whatsapp-mcp::list_chats.query": "remove:list,show,get,whatsapp,chats,chat"
+    },
+    "get_chat": {
+      "whatsapp-mcp::get_chat.chat_jid": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))",
+      "whatsapp-mcp::get_chat.Extract chat JID": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))"
+    },
+    "get_direct_chat_by_contact": {
+      "whatsapp-mcp::get_direct_chat_by_contact.sender_phone_number": "regex:\\\\b\\\\d{10,15}\\\\b",
+      "whatsapp-mcp::get_direct_chat_by_contact.Extract phone number": "regex:\\\\b\\\\d{10,15}\\\\b"
+    },
+    "get_contact_chats": {
+      "whatsapp-mcp::get_contact_chats.jid": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))",
+      "whatsapp-mcp::get_contact_chats.Extract JID": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))"
+    },
+    "get_last_interaction": {
+      "whatsapp-mcp::get_last_interaction.jid": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))",
+      "whatsapp-mcp::get_last_interaction.Extract JID": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))"
+    },
+    "get_message_context": {
+      "whatsapp-mcp::get_message_context.message_id": "regex:\\\\b([A-Za-z0-9]{20,})\\\\b",
+      "whatsapp-mcp::get_message_context.Extract message ID": "regex:\\\\b([A-Za-z0-9]{20,})\\\\b"
+    },
+    "send_file": {
+      "whatsapp-mcp::send_file.recipient": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\b\\\\d{10,15}\\\\b)",
+      "whatsapp-mcp::send_file.media_path": "keyword:after_file",
+      "whatsapp-mcp::send_file.Extract recipient": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\b\\\\d{10,15}\\\\b)",
+      "whatsapp-mcp::send_file.Extract file path": "keyword:after_file"
+    },
+    "send_audio_message": {
+      "whatsapp-mcp::send_audio_message.recipient": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\b\\\\d{10,15}\\\\b)",
+      "whatsapp-mcp::send_audio_message.media_path": "keyword:after_file",
+      "whatsapp-mcp::send_audio_message.Extract recipient": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us)|\\\\b\\\\d{10,15}\\\\b)",
+      "whatsapp-mcp::send_audio_message.Extract audio file path": "keyword:after_file"
+    },
+    "download_media": {
+      "whatsapp-mcp::download_media.message_id": "regex:\\\\b([A-Za-z0-9]{20,})\\\\b",
+      "whatsapp-mcp::download_media.chat_jid": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))",
+      "whatsapp-mcp::download_media.Extract message ID": "regex:\\\\b([A-Za-z0-9]{20,})\\\\b",
+      "whatsapp-mcp::download_media.Extract chat JID": "regex:([\\\\w\\\\d]+@(?:s\\\\.whatsapp\\\\.net|g\\\\.us))"
+    }
+  },
+  "reminder_message": "whatsapp-mcp MCP server. See OI.md for installation and configuration details."
+}
